@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <link rel="stylesheet" href="/css/main.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="" />
+  <title>ADVENT OF COBOL: Day 2</title>
+</head>
+<body><div id="content">
+<h1>ADVENT OF COBOL: Day 2</h1>
+<div id="navbar">
+  <a href="http://thequux.github.io/posts/">&lt;&lt; Back to posts</a>
+</div>
+<div class="paragraph">
+<p>I cheated. Two days in and the desire was already overwhelming.</p>
+</div>
+<div class="paragraph">
+<p>I spent most of the day on day 1’s writeup, and so I didn’t have much
+time for day 2.  I guess that means that the future writeups will have
+to be a lot shorter, which will give you more time for doomscrolling;
+You can thank me later.  However, that did mean that I didn’t have the
+time to read input in its original form, and had to do a bit of
+preprocessing on it before I could load it into a table:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>cat advent2.txt  |sed -e &#34;s/-/,/&#34; -e &#39;s/ /,/&#39; -e &#39;s/: /,/&#39; &gt;advent2.csv</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>I copied that to PASE, just like yesterday, and then went about
+defining my record format.</p>
+</div>
+<div class="paragraph">
+<p>Now, we have four fields in our input:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>The minimum number of matchingcharacters, a number between 1 and 20</p>
+</li>
+<li>
+<p>The maximum number of matching characters, also a number between 1 and 20</p>
+</li>
+<li>
+<p>The character to match, which is a single character</p>
+</li>
+<li>
+<p>The password that supposedly fits those criteria, which is a string of up
+to 20 characters</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>This should be relatively straightforward to fit into DDS, and in fact it is:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-dds" data-lang="dds">     A          R ADVDTA021
+     A            MINCOUNT       2S
+     A            MAXCOUNT       2S
+     A            LIMITCHR       1A
+     A            PASSWD        20A</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We have a new value for the type field: <code>A</code>, which is an alphabetic
+character; aside from that, this is no different from last week.  Even
+loading our CSV into the data table is exactly the same as last week;
+`CPYFRMIMPF’s defaults are to load a CSV file.</p>
+</div>
+<div class="paragraph">
+<p>Alas, we have no choice but to move on to the program.</p>
+</div>
+<div class="paragraph">
+<p>I’ll skip over the identification and environment divisions, because
+they’re much the same as before.  I’m just reading from a different
+file.</p>
+</div>
+<div class="paragraph">
+<p>Our data division, though, is totally different.  There aren’t a lot
+of records here, but I didn’t want to retype the whole thing.
+Fortunately, IBM i has the concept of an externally described file,
+which allows you to just import declarations from your DDS and the
+compiler will generate your record definition for you.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       DATA DIVISION.
+       FILE SECTION.
+        FD SCAN1.
+         01 DATA-RECORD.
+         COPY DD-ADVDTA021-I OF ADVENT2020-ADVDTA021.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Let’s break that last line down a little, because, for a four word
+line of code, there’s a lot going on.</p>
+</div>
+<div class="paragraph">
+<p><code>COPY</code> is COBOL’s equivalent of <code>#include</code>; it just textually pastes
+code from another source.  Its general form is</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       COPY member [OF file].</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>So, if we had another source member called <code>INCLUDES</code>, we could
+include it using</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       COPY INCLUDES OF ADVENTSRC.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>file</code> part of that is optional, but we include it because the
+default is not to copy from the current file, but rather <code>QCBLLESRC</code>.
+I guess I’ve been going against the grain by putting all my source in
+a single file, and thus losing out on convenience features like this.
+Oh well, I’ll try to do better tomorrow.</p>
+</div>
+<div class="paragraph">
+<p>As an IBM extension, though, if the member name starts with <code>DD-</code>, it
+translates from DDS source; you then give the name of the DDS member
+and what type of record you want to import.  We’re only reading from
+the database, so we can use <code>-I</code> as the record type.</p>
+</div>
+<div class="paragraph">
+<p>At first, it wasn’t completely clear what I’d get out of that, but I
+just threw the compiler at it and read the listing.  There were
+naturally a ton of compiler errors, but I did find what I needed.</p>
+</div>
+<div class="paragraph">
+<p>As always, full details are available in
+<a href="https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_73/rzasb/copyf2.htm">IBM’s docs</a></p>
+</div>
+<div class="paragraph">
+<p>We can move on to our local variables:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       LOCAL-STORAGE SECTION.
+        01 CHAR-COUNT PIC 9(2).
+        01 BADPWD PIC 9(4) VALUE IS 0.
+        01 GOODPWD PIC 9(4) VALUE IS 0.
+        01 NREC PIC 9(5) VALUE IS 0.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This is still pretty straightforward.  I did learn that I can use
+<code>9(4)</code> as a shorthand for <code>9999</code> in the <code>PICTURE</code> clause, which is a
+nice timesaver.</p>
+</div>
+<div class="paragraph">
+<p>Finally, we have our code.  This is still pretty short, but we’ll
+still break it up into sections to examine it more closely.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       PROCEDURE DIVISION.
+        MAIN-PROCESSING SECTION.
+         SETUP.
+           OPEN INPUT SCAN1.
+         READ-DATA.
+           READ SCAN1 NEXT RECORD AT END
+             GO TO PRINT-REPORT
+           END-READ
+           ADD 1 TO NREC</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This is still pretty much the same as our first program, so no need to
+explain anything here.  The other major language on IBM i, RPG, has a
+nice feature where it implicitly includes this outer loop for you.
+Maybe it’ll make a guest appearance soon.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">           MOVE 0 TO CHAR-COUNT
+           INSPECT PASSWD TALLYING CHAR-COUNT FOR ALL LIMITCHR</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>I expected COBOL to be absolutely <strong>terrible</strong> at character handling,
+but this is it.  This counts the number of <code>LIMITCHR</code> in <code>PASSWD</code>, and
+puts the result into <code>CHAR-COUNT</code>.  Quite frankly, I’m impressed.</p>
+</div>
+<div class="paragraph">
+<p>The <code>INSPECT</code> command can do more than this; it can count leading
+characters, replace one character with another, etc.  It’s actually
+pretty powerful, but I will admit that I have a hard time seeing how
+to use it in any situation that’s not this contrived.  I guess
+we’ll see.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">           IF CHAR-COUNT IS LESS THAN MINCOUNT
+             OR CHAR-COUNT IS GREATER THAN MAXCOUNT THEN
+             ADD 1 TO BADPWD
+           ELSE
+             ADD 1 TO GOODPWD
+           END-IF
+           GO TO READ-DATA.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>That condition is a helluva lot more verbose than it would be in, say,
+C, but it’s completely clear what it’s doing.  There’s really nothing
+surprising here, except that I expected to need to type a lot more.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">         PRINT-REPORT.
+           DISPLAY &#34;PROCESSED &#34; NREC &#34; RECORDS&#34;
+           DISPLAY &#34;FOUND &#34; BADPWD &#34; FAULTY RECORDS&#34;
+           DISPLAY &#34;FOUND &#34; GOODPWD &#34; ACCEPTABLE RECORDS&#34;
+           CLOSE SCAN1
+           STOP RUN.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And here’s the final output bit. Again, nothing of any interest here,
+and it gives the right result, so we’ll move straight on to part 2.</p>
+</div>
+<div class="paragraph">
+<p>(Well, it took me a few tries, because I misread the spec as wanting a
+count of the <strong>bad</strong> passwords. Oops)</p>
+</div>
+<div class="sect1">
+<h2 id="_part_2">Part 2</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>OK, now we need to look at two specific character positions, not just
+count the total mistakes.</p>
+</div>
+<div class="paragraph">
+<p>This actually took me a long time, because I couldn’t find any
+documentation on how to take a substring of a string in COBOL. To be
+honest, even now that I know how to do it, it’s just not documented in
+ILE COBOL.  It was in COBOL for z/OS, and while the two are very
+different products, the z/OS code ended up working on i.</p>
+</div>
+<div class="paragraph">
+<p>Anyway, we’ll need another variable in our local storage section:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">        01 TESTCHR PIC X.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>X</code> is a picture of any character, you see.</p>
+</div>
+<div class="paragraph">
+<p>We also need to change our lovely inspect statement to something much worse:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">           MOVE PASSWD(MINCOUNT:1) TO TESTCHR
+           IF TESTCHR IS EQUAL TO LIMITCHR THEN
+             ADD 1 TO CHAR-COUNT
+           END-IF
+           MOVE PASSWD(MAXCOUNT:1) TO TESTCHR
+           IF TESTCHR IS EQUAL TO LIMITCHR THEN
+             ADD 1 TO CHAR-COUNT
+           END-IF</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Here you can see how subscripting works. You can only do it as part of
+a MOVE statement, and the syntax seems to be <code>VARIABLE(START:LENGTH)</code>.
+Whatever; it works.</p>
+</div>
+<div class="paragraph">
+<p>Then we just need to change the if statement to check whether
+<code>CHAR-COUNT</code> is 1, but I won’t bore you with that.</p>
+</div>
+<div class="paragraph">
+<p>That’s all for today, folks!</p>
+</div>
+</div>
+</div>
+
+
+
+        </div></body>
+</html>

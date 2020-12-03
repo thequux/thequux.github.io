@@ -1,0 +1,8 @@
+{{ define "main" }}
+<h1>{{.Title}}</h1>
+<div id="navbar">
+  <a href="{{ with .Site.GetPage "section" .Section}}{{ .Permalink }}{{end}}">&lt;&lt; Back to {{.Section}}</a>
+</div>
+{{.Content}}
+
+{{ end }}

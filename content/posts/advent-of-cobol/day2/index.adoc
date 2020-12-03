@@ -1,0 +1,235 @@
+---
+categories:
+  - ADVENT OF COBOL
+date: "2020-12-02"
+slug: advent-of-cobol-day-2
+title: "ADVENT OF COBOL: Day 2"
+tags:
+ - COBOL
+ - Advent of Code
+ - IBM i
+---
+
+I cheated. Two days in and the desire was already overwhelming.
+
+I spent most of the day on day 1's writeup, and so I didn't have much
+time for day 2.  I guess that means that the future writeups will have
+to be a lot shorter, which will give you more time for doomscrolling;
+You can thank me later.  However, that did mean that I didn't have the
+time to read input in its original form, and had to do a bit of
+preprocessing on it before I could load it into a table:
+
+....
+cat advent2.txt  |sed -e "s/-/,/" -e 's/ /,/' -e 's/: /,/' >advent2.csv
+....
+
+I copied that to PASE, just like yesterday, and then went about
+defining my record format.
+
+Now, we have four fields in our input:
+
+* The minimum number of matchingcharacters, a number between 1 and 20
+* The maximum number of matching characters, also a number between 1 and 20
+* The character to match, which is a single character
+* The password that supposedly fits those criteria, which is a string of up
+  to 20 characters
+
+This should be relatively straightforward to fit into DDS, and in fact it is:
+
+[source,dds]
+....
+     A          R ADVDTA021
+     A            MINCOUNT       2S
+     A            MAXCOUNT       2S
+     A            LIMITCHR       1A
+     A            PASSWD        20A
+....
+
+We have a new value for the type field: `A`, which is an alphabetic
+character; aside from that, this is no different from last week.  Even
+loading our CSV into the data table is exactly the same as last week;
+`CPYFRMIMPF`'s defaults are to load a CSV file.
+
+Alas, we have no choice but to move on to the program.
+
+I'll skip over the identification and environment divisions, because
+they're much the same as before.  I'm just reading from a different
+file.
+
+Our data division, though, is totally different.  There aren't a lot
+of records here, but I didn't want to retype the whole thing.
+Fortunately, IBM i has the concept of an externally described file,
+which allows you to just import declarations from your DDS and the
+compiler will generate your record definition for you.
+
+[source,cobol]
+....
+       DATA DIVISION.
+       FILE SECTION.
+        FD SCAN1.
+         01 DATA-RECORD.
+         COPY DD-ADVDTA021-I OF ADVENT2020-ADVDTA021.
+....
+
+Let's break that last line down a little, because, for a four word
+line of code, there's a lot going on.
+
+`COPY` is COBOL's equivalent of `#include`; it just textually pastes
+code from another source.  Its general form is
+
+[source,cobol]
+....
+       COPY member [OF file].
+....
+
+So, if we had another source member called `INCLUDES`, we could
+include it using
+
+[source,cobol]
+....
+       COPY INCLUDES OF ADVENTSRC.
+....
+
+The `file` part of that is optional, but we include it because the
+default is not to copy from the current file, but rather `QCBLLESRC`.
+I guess I've been going against the grain by putting all my source in
+a single file, and thus losing out on convenience features like this.
+Oh well, I'll try to do better tomorrow.
+
+As an IBM extension, though, if the member name starts with `DD-`, it
+translates from DDS source; you then give the name of the DDS member
+and what type of record you want to import.  We're only reading from
+the database, so we can use `-I` as the record type.
+
+At first, it wasn't completely clear what I'd get out of that, but I
+just threw the compiler at it and read the listing.  There were
+naturally a ton of compiler errors, but I did find what I needed.
+
+As always, full details are available in 
+https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_73/rzasb/copyf2.htm[IBM's docs]
+
+We can move on to our local variables:
+
+[source,cobol]
+....
+       LOCAL-STORAGE SECTION.
+        01 CHAR-COUNT PIC 9(2).
+        01 BADPWD PIC 9(4) VALUE IS 0.
+        01 GOODPWD PIC 9(4) VALUE IS 0.
+        01 NREC PIC 9(5) VALUE IS 0.
+....
+
+This is still pretty straightforward.  I did learn that I can use
+`9(4)` as a shorthand for `9999` in the `PICTURE` clause, which is a
+nice timesaver.
+
+Finally, we have our code.  This is still pretty short, but we'll
+still break it up into sections to examine it more closely.
+
+[source,cobol]
+....
+       PROCEDURE DIVISION.
+        MAIN-PROCESSING SECTION.
+         SETUP.
+           OPEN INPUT SCAN1.
+         READ-DATA.
+           READ SCAN1 NEXT RECORD AT END
+             GO TO PRINT-REPORT
+           END-READ
+           ADD 1 TO NREC
+....
+
+This is still pretty much the same as our first program, so no need to
+explain anything here.  The other major language on IBM i, RPG, has a
+nice feature where it implicitly includes this outer loop for you.
+Maybe it'll make a guest appearance soon.
+
+[source,cobol]
+....
+           MOVE 0 TO CHAR-COUNT
+           INSPECT PASSWD TALLYING CHAR-COUNT FOR ALL LIMITCHR
+....
+
+I expected COBOL to be absolutely *terrible* at character handling,
+but this is it.  This counts the number of `LIMITCHR` in `PASSWD`, and
+puts the result into `CHAR-COUNT`.  Quite frankly, I'm impressed.
+
+The `INSPECT` command can do more than this; it can count leading
+characters, replace one character with another, etc.  It's actually
+pretty powerful, but I will admit that I have a hard time seeing how
+to use it in any situation that's not this contrived.  I guess
+we'll see.
+
+[source,cobol]
+....
+           IF CHAR-COUNT IS LESS THAN MINCOUNT
+             OR CHAR-COUNT IS GREATER THAN MAXCOUNT THEN
+             ADD 1 TO BADPWD
+           ELSE
+             ADD 1 TO GOODPWD
+           END-IF
+           GO TO READ-DATA.
+....
+
+That condition is a helluva lot more verbose than it would be in, say,
+C, but it's completely clear what it's doing.  There's really nothing
+surprising here, except that I expected to need to type a lot more.
+
+[source,cobol]
+....
+         PRINT-REPORT.
+           DISPLAY "PROCESSED " NREC " RECORDS"
+           DISPLAY "FOUND " BADPWD " FAULTY RECORDS"
+           DISPLAY "FOUND " GOODPWD " ACCEPTABLE RECORDS"
+           CLOSE SCAN1
+           STOP RUN.
+....
+
+And here's the final output bit. Again, nothing of any interest here,
+and it gives the right result, so we'll move straight on to part 2.
+
+(Well, it took me a few tries, because I misread the spec as wanting a
+count of the *bad* passwords. Oops)
+
+== Part 2
+
+OK, now we need to look at two specific character positions, not just
+count the total mistakes.
+
+This actually took me a long time, because I couldn't find any
+documentation on how to take a substring of a string in COBOL. To be
+honest, even now that I know how to do it, it's just not documented in
+ILE COBOL.  It was in COBOL for z/OS, and while the two are very
+different products, the z/OS code ended up working on i.
+
+Anyway, we'll need another variable in our local storage section:
+
+[source,cobol]
+....
+        01 TESTCHR PIC X.
+....
+
+`X` is a picture of any character, you see.
+
+We also need to change our lovely inspect statement to something much worse:
+
+[source,cobol]
+....
+           MOVE PASSWD(MINCOUNT:1) TO TESTCHR
+           IF TESTCHR IS EQUAL TO LIMITCHR THEN
+             ADD 1 TO CHAR-COUNT
+           END-IF
+           MOVE PASSWD(MAXCOUNT:1) TO TESTCHR
+           IF TESTCHR IS EQUAL TO LIMITCHR THEN
+             ADD 1 TO CHAR-COUNT
+           END-IF
+....
+
+Here you can see how subscripting works. You can only do it as part of
+a MOVE statement, and the syntax seems to be `VARIABLE(START:LENGTH)`.
+Whatever; it works.
+
+Then we just need to change the if statement to check whether
+`CHAR-COUNT` is 1, but I won't bore you with that.
+
+That's all for today, folks!

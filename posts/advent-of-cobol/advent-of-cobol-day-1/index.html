@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <link rel="stylesheet" href="/css/main.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Day 1 of Advent of Code 2020, using COBOL on IBM i" />
+  <title>ADVENT OF COBOL: Day 1</title>
+</head>
+<body><div id="content">
+<h1>ADVENT OF COBOL: Day 1</h1>
+<div id="navbar">
+  <a href="http://thequux.github.io/posts/">&lt;&lt; Back to posts</a>
+</div>
+<div class="paragraph">
+<p>Every year, Eric Wastl hosts an event called
+<a href="https://adventofcode.com/2020">Advent of Code</a>, which consists of two
+coding challenges per day from the first of december through Christmas
+day. The first few challenges tend to be fairly simple, but then they
+gradually increase in difficulty through the event.</p>
+</div>
+<div class="paragraph">
+<p>This makes Advent of Code a wonderful way to learn a new language or
+platform, and last year I used it as an excuse to learn Forth. This
+year, I decided to try a new system, and wanted something that was
+decidedly different from anything I had worked with before. So, of
+course I reached for the strangest platform I have access to: COBOL on
+IBM i.</p>
+</div>
+<div class="paragraph">
+<p>IBM i (formerly i5/OS, and before that, AS/400) is IBM’s lesser known
+server platform for businesses not large enough to need a mainframe.
+They intended it to be a server appliance for small businesses, but
+they left the design in the hands of a research team in Rochester, who
+came up with a very unusual design. For a start, the primary way that
+most users would interact with the system is a “green screen” block
+mode terminal <sup class="footnote">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup>. When you start trying to write code for
+it, the documentation instructs you to first create a “source
+physical file”.  This got me curious what other kinds of files there
+were, and after some investigation I realized that “physical file”
+is the IBM i term for a database table, and “logical file” is the
+IBM i term for a view. In other words, even your <em>source code</em> is
+stored in database tables. The platform is based around a single-level
+store, which basically means that every file in the system is
+constantly mapped into memory, and always has the same address; to
+accomplish this, pointers are 128 bits long and the system has special
+hardware to verify that a value in memory is OK to use as a pointer.</p>
+</div>
+<div class="paragraph">
+<p>In short, we’re not in Kansas anymore.</p>
+</div>
+<div class="sect1">
+<h2 id="_note_for_people_who_want_to_follow_along">Note for people who want to follow along</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>My hope is that you, dear reader, will be able to follow along on your
+own and perhaps learn a new system along with me.</p>
+</div>
+<div class="paragraph">
+<p>It can be tricky to get access to an IBM i machine, and even once you
+do, learning how to operate the editor and operating system will take
+some time. I’ll write more about how to take your first steps with IBM i
+later, but for now, you can go to <a href="https://www.pub400.com">PUB400</a> and
+request a free account. In order to actually use it, you’ll need a 5250
+emulator; I recommend either
+<a href="https://www.ibm.com/support/pages/ibm-i-access-client-solutions">iACS</a> or
+<a href="http://tn5250j.org/">tn5250j</a>.</p>
+</div>
+<div class="paragraph">
+<p>IBM’s documentation for i is very complete, but it was written in a time
+when the hardware would come in one box, your 5 meters of documentation
+would come in a second, and a friendly field engineer would come in a
+third to install the machine for you. As such, you’ll be spending a lot
+of time at first just looking through the documentation to find the
+details you need.</p>
+</div>
+<div class="paragraph">
+<p>For today, just go to
+<a href="https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_74/rzase/esrcst.htm">Compiling,
+Running, and Debugging COBOL programs</a> for a tutorial on operating the
+editor and compiler; I’ll try to explain everything else you need. In
+the future, I’ll be skipping over the basics and talking only about new
+things, so if you find this intolerably slow, it will get better.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_getting_started">Getting started</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Firstly, I needed to get the data into a form that I can use from
+IBM i.  Considering that the system really wants to use record-based
+I/O <sup class="footnote">[<a id="_footnoteref_2" class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup>, we
+first need to create a physical file and load the data into it.</p>
+</div>
+<div class="paragraph">
+<p>We have two options for how to create a physical file. SQL is always an
+option, but I prefer the old-fashioned approach (creating data
+description specifications), so that’s what we’ll do here.</p>
+</div>
+<div class="paragraph">
+<p>First, though, we need a source physical file to write our code in, and
+it’s probably best to first create a library (akin to a directory in
+UNIX or a schema in SQL) to keep everything together. You can create the
+library by typing the following command:</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>CRTLIB ADVENT2020</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The command to create a source file is a bit more complex, and it would
+be really nice to be able to have an on-screen reference as we put our
+command together. Fortunately, i has our back. Just type <code>CRTSRCPF</code>
+and press <code class="kbd">F4</code>. You’ll get the following screen:</p>
+</div>
+<div class="paragraph">
+<p><span class="image"><img src="crtsrcpf-prompt.png" alt="CRTSRCPF Prompt" width="724" height="498"/></span></p>
+</div>
+<div class="paragraph">
+<p>It is common to split your source up by the language it’s in. However,
+for simplicitly, I’ll just keep all my source in a single file called
+<code>adventsrc</code>. We also want to have somewhat longer lines than the
+default, so we’ll create our source file with a record length of 112.</p>
+</div>
+<div class="paragraph">
+<p><span class="image"><img src="crtsrcpf-filled.png" alt="CRTSRCPF with parameters given" width="724" height="498"/></span></p>
+</div>
+<div class="paragraph">
+<p>While we could just hit enter here to run the command, it’s worth
+examining this screen more closely first, as you’ll be using screens
+like this a lot and there’s a lot more you can do here.</p>
+</div>
+<div class="paragraph">
+<p>First, you’ll notice that there are a list of function keys at the
+bottom of the screen, including <code>F13</code> and <code>F24</code>. If you look closely
+at your keyboard, however, you’ll find that the F keys only go up to 12.
+Fortunately, you can reach <code>F13</code> by pressing <code>Shift-F1</code>, <code>F14</code>
+using <code>Shift-F2</code>, all the way up to <code>Shift-F12</code> for <code>F24</code>. I’ll
+use the names listed on the screen, and let you translate them in your
+head, as it’s both good practice and how I think about it in my head.</p>
+</div>
+<div class="paragraph">
+<p>It’s worth pressing <code>F13</code> here to see how to use this screen to the
+extent of its abilities, but for now just press <code>F24</code> a few times to
+flip through all the keys you have available. Perhaps the most
+interesting are <code>F9</code>, which shows you all the options available to you
+(of which there are too many to shake a stick at), and <code>F14</code>, which
+shows you that you could have skipped the entire screen by typing the
+command</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>CRTSRCPF FILE(ADVENT2020/ADVENTSRC) RCDLEN(112)</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Once you’re done exploring that screen, press enter to submit the
+command, and now we’re ready to start writing our code.</p>
+</div>
+<div class="paragraph">
+<p>From this point on, I won’t discuss the interface in depth; just know
+that you can nearly always get help by pressing <code>F1</code>, have the system
+offer you a prompt by pressing <code>F4</code>, exit a little by pressing
+<code>F12</code>, or exit a lot by pressing <code>F3</code>.</p>
+</div>
+<div class="paragraph">
+<p>To enter the editor, run the command</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>strseu srcfile(advent2020/adventsrc) srcmbr(advdta011) type(pf)</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>As you can see, very little is case-sensitive here.</p>
+</div>
+<div class="paragraph">
+<p>Enter the following code:</p>
+</div>
+<div class="listingblock dds">
+<div class="content">
+<pre class="highlight"><code>     A          R ADVDTA011
+     A            DATA           4S</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This specifies a record format named <code>ADVDTA011</code> with a single column
+named <code>DATA</code> that is a 4-character-wide decimal. I won’t go into
+detail on it, because</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>There’s not a lot going on here</p>
+</li>
+<li>
+<p><a href="https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_74/rzakb/kickoff.htm">IBM’s
+documentation</a> covers it far better than I could</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>Next, we need to turn this into an actual physical file:</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>crtpf file(advent2020/advdta011) srcfile(advent2020/adventsrc)</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Now we just need to get our data into this file. There are a variety of
+ways to do it, but the way that I did it was to copy the file to my home
+directory in PASE (yes, IBM i has a complete UNIX-ish system on the
+side, but be warned that it is <em>very</em> strange. For a start, it’s based
+on AIX, which is at best maliciously compliant with POSIX).</p>
+</div>
+<div class="paragraph">
+<p>I got my file in using scp, then used <code>cpyfrmimpf</code> command to
+actually load the data into my physical file (Note: this is formatted
+as multiple lines for clarity, but you’ll need to enter all of the options on a
+single line):</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>CPYFRMIMPF FROMSTMF(&#39;/home/thequux/advdta011.csv&#39;)
+           TOFILE(ADVENT2020/ADVDTA011)
+           RCDDLM(*ALL)
+           MBROPT(*REPLACE)</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If everything went well, then this should complete successfully. You can
+see the data in the file by running <code>STRDFU</code>, selecting option 5
+(“Update data using temporary program”), and then specifying the name
+of the physical file we created earlier.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_i_thought_this_was_going_to_be_about_cobol">I thought this was going to be about COBOL…?</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>That, unfortunately, is as long as we’re going to be able to
+procrastinate; it’s time to grit our teeth and start writing COBOL for
+real. This is going to be a bit unpleasant, so we’ll take it piece by
+piece.</p>
+</div>
+<div class="paragraph">
+<p>The structure of a COBOL program is very strictly regimented. Your code
+is sorted into divisions, which then are divided into sections, and your
+statements only appear within those sections. (well, there are also
+paragraphs and sentences, but I don’t understand those divisions
+completely, so let’s just ignore them, shall we?)</p>
+</div>
+<div class="paragraph">
+<p>Create a source member called <code>ADVENT01.1</code> with type <code>CBLLE</code> in
+<code>ADVENT2020/ADVENTSRC</code>, and start typing.</p>
+</div>
+<div class="sect2">
+<h3 id="_identification_division">IDENTIFICATION DIVISION.</h3>
+<div class="paragraph">
+<p>This one is very simple, and I hope self-explanatory.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       IDENTIFICATION DIVISION.
+         PROGRAM-ID. &#34;ADVENT01.1&#34;.
+         AUTHOR. TQ Hirsch.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>’nuff said.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_environment_division">ENVIRONMENT DIVISION.</h3>
+<div class="paragraph">
+<p>Here we have two sections:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">      ENVIRONMENT DIVISION.
+        CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-ISERIES.
+         OBJECT-COMPUTER. IBM-ISERIES.
+         SPECIAL-NAMES. REQUESTOR IS CONSOLE.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To be honest, I copied this directly from the IBM documentation. The
+<code>SOURCE-COMPUTER</code> and <code>OBJECT-COMPUTER</code> paragraphs are not used for
+anything, but they seem to be a sensible place to document exactly
+<em>which</em> variant of COBOL we’re using. The <code>SPECIAL-NAMES</code> paragraph,
+though, <em>does</em> do something useful, though we don’t actually take
+advantage of it.</p>
+</div>
+<div class="paragraph">
+<p>It turns out that IBM i has two I/O streams: a system console and the
+“requestor” (which may be an interactive terminal, or it may be a job
+log for batch programs). The declaration <code>REQUESTOR IS CONSOLE</code>
+essentially says “when I do I/O to CONSOLE, I really mean REQUESTOR.
+Don’t bother the sysop with my blathering.”</p>
+</div>
+<div class="paragraph">
+<p>As it turns out, we won’t do I/O to CONSOLE in this program, so we don’t
+get any benefit from this section at all, so it was a complete waste of
+time. Let’s be honest with ourselves, though; you would have used it
+reading Hacker News anyway, so nothing of value was lost.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">        INPUT-OUTPUT SECTION.
+          FILE-CONTROL.
+           SELECT SCAN1 ASSIGN TO DISK-ADVDTA011
+             ORGANIZATION IS SEQUENTIAL
+             ACCESS MODE IS SEQUENTIAL.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Aha! Now we’re getting out of the boilerplate and getting into something
+that’s actually relevant to us. This is where we actually define which
+files we’re going to be using. Here, we say that we’ll want to access
+the file ADVDTA011 using the name SCAN1, and we’ll always start with the
+first record in the file and read them in sequence. There are other
+types of file organization as well: relative mode lets you jump to
+records by number, and indexed mode works lets you access records by
+their primary key.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_data_division">DATA DIVISION.</h3>
+<div class="paragraph">
+<p>As the name indicates, here’s where we’ll divide up our data.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       DATA DIVISION.
+       FILE SECTION.
+        FD SCAN1.
+         01 S1DTA PIC 9999.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Oh, you thought we were done with files, did you? Nope, we still need to
+define what each record looks like. Here we say that the file that we
+refer to as SCAN1 has one field, named S1DTA, and it looks like
+“9999”. The PIC keyword, you see, says “Here’s a picture of what this
+data will look like!”, and then we have four 9’s, because we want to be
+able to store four digits in it.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       LOCAL-STORAGE SECTION.
+        01 CALC-RESULT PIC 99999999.
+        01 PRODUCT PIC 99999999.
+        01 NREC PIC 99999 VALUE IS 0.
+        01 NUMBERS-TABLE.
+        05 SEEN-NUMBERS OCCURS 2020 TIMES PIC 1 VALUE IS B&#34;0&#34;.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>There are two similar sections, <code>LOCAL-STORAGE</code> and
+<code>WORKING-STORAGE</code>, of which we’ll only use one. Both contain variables
+local to the procedure; the main difference between them is that working
+storage is shared between all invocations of a procedure, whereas local
+storage is specific to the invocation. For our purposes, this
+distinction doesn’t matter, but it’s good practice to use local storage
+if you can.</p>
+</div>
+<div class="paragraph">
+<p>To explain our variables, I’ll need to explain the algorithm we’ll be
+using. The most obvious algorithm is to test each pair of records; if
+they sum to 2020, we’ve found our solution. However, it’s much more
+efficient to remember which values we’ve seen and simply check whether
+we’ve already seen the other number in the pair.</p>
+</div>
+<div class="paragraph">
+<p>Thus, we can see what variables we need:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>A pair of variables to store intermediate caluclation results
+(<code>CALC-RESULT</code> and <code>PRODUCT</code>). Note that these are 8 digits long, so
+that we can fit the full product of two 4-digit numbers into it.</p>
+</li>
+<li>
+<p>A variable to store the number of input records, for diagnostic
+purposes (<code>NREC</code>).</p>
+</li>
+<li>
+<p>Finally, an array of booleans to indicate which values we’ve already
+seen (<code>PIC 1</code> is an IBM extension that stores a boolean).</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>There is another aspect to all of all of these definitions that I’ve
+ignored so far: the level (here, <code>01</code> and <code>05</code>). COBOL does support
+structures (which it, perhaps confusingly, calls records); each variable
+that doesn’t have a level number of <code>01</code> forms a part of the record
+stored in the last variable with a higher record number. The only reason
+we use a record here is that, for some reason I don’t understand, the
+<code>OCCURS</code> clause is not valid on variables with a level of <code>01</code>, but
+every variable must be part of a record with level <code>01</code>.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_procedure_division">PROCEDURE DIVISION.</h3>
+<div class="paragraph">
+<p>Now we get to the meat of our program.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       PROCEDURE DIVISION.
+        MAIN-PROCESSING SECTION.
+         SETUP.
+           OPEN INPUT SCAN1.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Execution starts at the beginning of the procedure division. We’ll only
+have one section, which we’ll call <code>MAIN-PROCESSING</code>; this name is
+irrelevant and you can already forget it. Next we start a paragraph
+named <code>SETUP</code>, which makes sense; the first thing we need to do is
+open our file for input.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">         MAIN.
+           READ SCAN1 NEXT RECORD AT END
+             DISPLAY &#34;NO MATCHING VALUES FOUND AFTER &#34; NREC &#34; RECORDS&#34;
+             GO TO ENDPGM
+           END-READ</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Oh, now we’re getting to the famous COBOL verbosity.</p>
+</div>
+<div class="paragraph">
+<p>We have a loop here, although that may not be obvious considering that
+the control flow is all done using <code>GO TO</code>. Each time through the
+loop, we try to read a record from <code>SCAN1</code>. If we reach the end of the
+file, we print a diagnostic and bail out.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">           ADD 1 TO NREC GIVING NREC
+           IF S1DTA IS GREATER THAN 2020 THEN
+             GO TO MAIN
+           END-IF</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>We incrememnt the record counter (and find ourselves pining for
+<code>C++</code>), then check whether the record we just read is too large to
+possibly be part of a pair that sums to 2020. If so, we simply jump back
+to <code>MAIN</code> to read the next record.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">           SUBTRACT S1DTA FROM 2020 GIVING CALC-RESULT
+           IF SEEN-NUMBERS(CALC-RESULT) IS EQUAL TO B&#34;1&#34; THEN
+             MULTIPLY CALC-RESULT BY S1DTA GIVING PRODUCT
+             DISPLAY CALC-RESULT &#34; * &#34; S1DTA &#34; = &#34; PRODUCT
+             GO TO ENDPGM
+           END-IF
+           MOVE B&#34;1&#34; TO SEEN-NUMBERS(S1DTA)
+           GO TO MAIN.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>First, we compute what number we need to make a winning pair, then check
+whether we’ve seen it yet. Of course, you can’t simply <em>use</em> a boolean
+as a condition; you need to see if it’s equal to true. Joy.</p>
+</div>
+<div class="paragraph">
+<p>If we have, in fact, seen the number already, we compute the product of
+the number and its pair, and bail out. Otherwise, we remember that we’ve
+seen the number and go back to read the next number.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">         ENDPGM.
+           ACCEPT CALC-RESULT
+           CLOSE SCAN1
+           STOP RUN.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Here we read a value, to make sure that the person running the program
+sees the result, close our file, and exit. In an earlier version, I
+failed to close the file first; when I needed to change the format of
+the file, that failed because it turns out that open files are shared
+across an entire “activation group”, and the activation group that
+this had run in was my login session. Oops. So, close your files when
+you’re done with them!</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_compiling_and_running_it">Compiling and running it</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This is easier than you might think; you can type in a compiler command
+if you like, but it’s much easier to compile your program using PDM, the
+Program Development Manager.</p>
+</div>
+<div class="paragraph">
+<p>If you haven’t been using it already, start PDM by running</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>WRKMBRPDM ADVENT2020/ADVENTSRC</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Each source member in the file is listed, and you can work with a member
+by typing an option into the <code>Opt</code> field before each member. We want
+to compile, which is option <code>14</code>, so we put that in:</p>
+</div>
+<div class="paragraph">
+<p><span class="image"><img src="wrkobjpdm-precompile.png" alt="WRKOBJPDM just before compiling" width="724" height="498"/></span></p>
+</div>
+<div class="paragraph">
+<p>and press enter:</p>
+</div>
+<div class="paragraph">
+<p><span class="image"><img src="wrkobjpdm-postcompile.png" alt="WRKOBJPDM After compiling. How anticlimactic!" width="724" height="498"/></span></p>
+</div>
+<div class="paragraph">
+<p>Well that was anticlimatic. In order to see whether that was successful,
+we need to look at the printer output. Press the <code>ATTN</code> key (on most
+5250 emulators, this is <code>ESC</code>, though with TN5250j, you’ll need to map
+a key to it because <code>ESC</code> is normally System Request, which you won’t
+use so much. System Request <em>is</em> still useful, so I’d remap that to
+<code>Shift-ESC</code>)</p>
+</div>
+<div class="paragraph">
+<p>You’ll get the operational assistant menu:</p>
+</div>
+<div class="paragraph">
+<p><span class="image"><img src="attnkey.png" alt="Here to assist you with your operations" width="724" height="498"/></span></p>
+</div>
+<div class="paragraph">
+<p>Here you can do two useful things: access your messages (see that <code>MW</code>
+in the status area? That’s your message waiting light) and access
+printer output. We’ll start by accessing our messages; here we find out
+that our compile succeeded, but there’s no interesting details. For
+<em>those</em>, we need to look at the printer output. Just clear your messages
+using <code>F16</code> and then back out to the operational assistant menu using
+<code>F12</code>.</p>
+</div>
+<div class="paragraph">
+<p>Unlike the message display, where the most recent message was clearly at
+the top, the printer output display has the most recent prinout at the
+bottom. Go there (you may need to page down a few times first), and use
+option 5 to display the report and find yourself struck with a sudden
+understanding of why greenbar paper was sold in 2000-sheet boxes.</p>
+</div>
+<div class="paragraph">
+<p>Before we run our program, there is one more thing we need to do. So
+far, we’ve been creating all of our files and programs in
+<code>ADVENT2020</code>, but that isn’t actually our current library. Make it so
+using</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>CHGCURLIB ADVENT2020</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If we don’t do this, our program will fail to find its input data.</p>
+</div>
+<div class="paragraph">
+<p>And <em>now</em> we can run the program, using</p>
+</div>
+<div class="listingblock no-outdent">
+<div class="content">
+<pre>CALL ADVENT2020/ADVENT01.1</pre>
+</div>
+</div>
+<div class="paragraph">
+<p><span class="image"><img src="task1-run.png" alt="IT’S ALIIIVE!" width="724" height="498"/></span></p>
+</div>
+<div class="paragraph">
+<p>That looks like it worked!</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_task_2">Task 2</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>We’ll be able to reuse our data file, but we can no longer use the same
+trick to process the file in linear time. There is a nice trick to do it
+in quadratic time, by computing a table of pairwise sums and then
+finding the third number in the triplet; however, we’ll keep things
+simple and use the cubic time algorithm. After all, the data isn’t
+particularly large.</p>
+</div>
+<div class="paragraph">
+<p>We’ll reuse the identification and environment divisions of our first
+program, but we’ll need to change our variables a bit:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       DATA DIVISION.
+       FILE SECTION.
+        FD SCAN1.
+         01 S1DTA PIC 9999.
+       LOCAL-STORAGE SECTION.
+        01 CALC-RESULT PIC 99999999.
+        01 PRODUCT PIC 999999999.
+        01 NREC PIC 99999 VALUE IS 0.
+        01 DATA-TABLE.
+         10 SEEN-NUMBERS PIC 9999 OCCURS 200 TIMES.
+         10 IDX0 PIC 999.
+         10 IDX1 PIC 999.
+         10 IDX2 PIC 999.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This time, instead of having a boolean flag for which numbers we’ve
+seen, we just load the whole thing into memory (the 200 comes from the
+fact that I counted the numbers, and that’s all there was). We’re also
+going to need three indices, which we’ll call <code>IDX0-3</code></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">       PROCEDURE DIVISION.
+        MAIN-PROCESSING SECTION.
+         SETUP.
+           OPEN INPUT SCAN1.
+         READ-DATA.
+           READ SCAN1 NEXT RECORD AT END
+             GO TO FIND-MATCHES
+           END-READ
+           IF S1DTA IS GREATER THAN 2020 THEN
+             GO TO READ-DATA
+           END-IF
+           ADD 1 TO NREC GIVING NREC
+           MOVE S1DTA TO SEEN-NUMBERS(NREC)
+           GO TO READ-DATA.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The setup paragraph is the same as before, but now we just load the data
+into our data array. At the end of the input, we move on to
+<code>FIND-MATCHES</code>.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cobol" data-lang="cobol">         FIND-MATCHES.
+           PERFORM VARYING IDX0 FROM 1 BY 1
+                   UNTIL IDX0 IS GREATER THAN NREC
+             ADD 1 TO IDX0 GIVING CALC-RESULT
+             PERFORM VARYING IDX1 FROM CALC-RESULT BY 1
+                     UNTIL IDX1 IS GREATER THAN NREC
+               ADD 1 TO IDX1 GIVING CALC-RESULT
+               PERFORM VARYING IDX2 FROM CALC-RESULT BY 1
+                       UNTIL IDX2 IS GREATER THAN NREC
+                 MOVE SEEN-NUMBERS(IDX0) TO CALC-RESULT
+                 ADD SEEN-NUMBERS(IDX1) TO CALC-RESULT
+                 ADD SEEN-NUMBERS(IDX2) TO CALC-RESULT
+                 IF CALC-RESULT IS EQUAL TO 2020 THEN
+                   MOVE SEEN-NUMBERS(IDX0) TO PRODUCT
+                   MULTIPLY PRODUCT BY SEEN-NUMBERS(IDX1) GIVING PRODUCT
+                   MULTIPLY PRODUCT BY SEEN-NUMBERS(IDX2) GIVING PRODUCT
+                   DISPLAY &#34;VALUES: &#34; SEEN-NUMBERS(IDX0) &#34;,&#34;
+                                      SEEN-NUMBERS(IDX1) &#34;,&#34;
+                                      SEEN-NUMBERS(IDX2)
+                   DISPLAY &#34;Product is &#34; PRODUCT
+                   GO TO ENDPGM
+                 END-IF
+               END-PERFORM
+             END-PERFORM
+           END-PERFORM.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Whew lads. That looks horrifying, but it’s actually not that bad.
+PERFORM is a general purpose control flow statement in COBOL, and here
+we’re using it as a roughly C-style for loop. I expect we’ll be seeing
+it a lot.</p>
+</div>
+<div class="paragraph">
+<p>Before each loop, we need to compute the lower bound of the loop,
+because COBOL doesn’t have the concept of expressions. Oh well, as
+obnoxious bits of languages go, this isn’t so bad. We see more of why
+expressions are a really great idea when calculating the sum and
+product, but despite being verbose it’s still very clear what’s going
+on.</p>
+</div>
+<div class="paragraph">
+<p>I won’t go any further into this version, because there’s really not
+very much going on, and if we compile and execute it like we did the
+first version, we get an answer that will give us our second star of the
+day.</p>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<hr/>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Specifically, it uses a 5250 terminal, similar in concept but very different in capabilities to the 3270 terminal used with IBM mainframes.
+</div>
+<div class="footnote" id="_footnotedef_2">
+<a href="#_footnoteref_2">2</a>. There are stream files as well, but working them is a bit of a pain.  Perhaps we’ll use them for a later challenge.
+</div>
+</div>
+
+
+
+        </div></body>
+</html>

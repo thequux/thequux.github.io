@@ -1,0 +1,122 @@
+$color-green: #24d830;
+$color-white: #fff;
+$color-red: #f01818;
+$color-turquoise: #58f0f0;
+$color-yellow: #ff0;
+$color-pink: #f0f;
+$color-blue: #7890f0;
+
+@mixin font-base {
+    font-family: "Operator Mono Book", "IBM 3270", monospace;
+    font-size: 11pt;    
+}
+
+
+body {
+    @include font-base;
+    background: #000;
+    color: $color-green;
+    max-width: 80ch;
+    margin-left: 2ch;
+}
+
+h1 {
+    text-align: center;
+    display: block;
+}
+h1,h2,h3,h4 {
+    color: $color-white;
+    font-size: 100%;
+}
+
+a {
+    color: $color-blue;
+
+    &:visited {
+	color: $color-yellow;
+    }
+}
+
+p {
+    margin-left: 7ch;
+}
+
+ul {
+    padding-left: 3ch;
+    margin-left: 7ch;
+    &>li > p {
+	margin-left: 1ch;
+    }
+}
+
+li>p {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+ol {
+    margin-left: 8ch;
+    &>li > p {
+	margin-left: 0ch;
+    }
+}
+ul>li::marker {
+    content: " * ";
+    margin-right: 1ch;
+		 
+}
+	
+code, pre {
+    @include font-base;
+    color: $color-white;
+}
+
+pre {
+    background: #222;
+}
+
+code[data-lang=cobol]::before {
+    content: " .....-A+++B++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++Pgm-Id++";
+    display: block;
+    color: $color-green;
+}
+
+code[data-lang="listing"]::before {
+    content: " ...+... 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+... 6 ...+... 7 ...+... 8";
+    display: block;
+    color: $color-green;
+}
+code[data-lang=dds]::before {
+    content: ".....A..........T.Name++++++RLen++TDpB......Functions+++++++++++++++++++++++++++";
+    display: block;
+    color: $color-green;
+}
+
+
+code.language-clcmd {
+    padding-left: 7ch;
+}
+
+div.listingblock.no-outdent {
+    pre {
+	margin-left: 7ch;
+    }
+}
+
+sup.footnote {
+    font-size: 100%;
+    vertical-align: baseline;
+}
+
+
+.section-entries {
+    .col-opt {
+	width: 4ch;
+    }
+    .col-title {
+	width: 60ch;
+    }
+    .col-date {
+	width: 10ch;
+    }
+}

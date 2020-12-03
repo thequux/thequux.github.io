@@ -1,0 +1,21 @@
+{{ define "main" }}
+{{ .Content }}
+  <h1>{{ .Title }}</h1>
+  <table class="section-entries">
+    <tr>
+      <td class="col-opt">Opt</td>
+      <td class="col-title">Title</td>
+      <td class="col-date">Date</td>
+    </tr>
+    {{ range .Paginator.Pages }}
+    <tr>
+      <td>__</td>
+      <td><a href="{{.Permalink}}">{{.Title}}</a></td>
+      <td>{{ .Date.Format "2006-01-02" }}
+    </tr>
+    {{end}}
+  </table>
+
+  {{ template "_internal/pagination.html" . }}
+
+{{ end }}

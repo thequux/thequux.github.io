@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Advent of Code on The Quux of the Matter</title>
+    <link>http://thequux.github.io/tags/advent-of-code/</link>
+    <description>Recent content in Advent of Code on The Quux of the Matter</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 02 Dec 2020 00:00:00 +0000</lastBuildDate><atom:link href="http://thequux.github.io/tags/advent-of-code/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>ADVENT OF COBOL: Day 2</title>
+      <link>http://thequux.github.io/posts/advent-of-cobol/advent-of-cobol-day-2/</link>
+      <pubDate>Wed, 02 Dec 2020 00:00:00 +0000</pubDate>
+      
+      <guid>http://thequux.github.io/posts/advent-of-cobol/advent-of-cobol-day-2/</guid>
+      <description>I cheated. Two days in and the desire was already overwhelming.
+ I spent most of the day on day 1’s writeup, and so I didn’t have much time for day 2. I guess that means that the future writeups will have to be a lot shorter, which will give you more time for doomscrolling; You can thank me later. However, that did mean that I didn’t have the time to read input in its original form, and had to do a bit of preprocessing on it before I could load it into a table:</description>
+    </item>
+    
+    <item>
+      <title>ADVENT OF COBOL: Day 1</title>
+      <link>http://thequux.github.io/posts/advent-of-cobol/advent-of-cobol-day-1/</link>
+      <pubDate>Tue, 01 Dec 2020 00:00:00 +0000</pubDate>
+      
+      <guid>http://thequux.github.io/posts/advent-of-cobol/advent-of-cobol-day-1/</guid>
+      <description>Every year, Eric Wastl hosts an event called Advent of Code, which consists of two coding challenges per day from the first of december through Christmas day. The first few challenges tend to be fairly simple, but then they gradually increase in difficulty through the event.
+ This makes Advent of Code a wonderful way to learn a new language or platform, and last year I used it as an excuse to learn Forth.</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,82 @@
+body {
+  font-family: "Operator Mono Book", "IBM 3270", monospace;
+  font-size: 11pt;
+  background: #000;
+  color: #24d830;
+  max-width: 80ch;
+  margin-left: 2ch; }
+
+h1 {
+  text-align: center;
+  display: block; }
+
+h1, h2, h3, h4 {
+  color: #fff;
+  font-size: 100%; }
+
+a {
+  color: #7890f0; }
+  a:visited {
+    color: #ff0; }
+
+p {
+  margin-left: 7ch; }
+
+ul {
+  padding-left: 3ch;
+  margin-left: 7ch; }
+  ul > li > p {
+    margin-left: 1ch; }
+
+li > p {
+  margin-top: 0;
+  margin-bottom: 0; }
+
+ol {
+  margin-left: 8ch; }
+  ol > li > p {
+    margin-left: 0ch; }
+
+ul > li::marker {
+  content: " * ";
+  margin-right: 1ch; }
+
+code, pre {
+  font-family: "Operator Mono Book", "IBM 3270", monospace;
+  font-size: 11pt;
+  color: #fff; }
+
+pre {
+  background: #222; }
+
+code[data-lang=cobol]::before {
+  content: " .....-A+++B++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++Pgm-Id++";
+  display: block;
+  color: #24d830; }
+
+code[data-lang="listing"]::before {
+  content: " ...+... 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+... 6 ...+... 7 ...+... 8";
+  display: block;
+  color: #24d830; }
+
+code[data-lang=dds]::before {
+  content: ".....A..........T.Name++++++RLen++TDpB......Functions+++++++++++++++++++++++++++";
+  display: block;
+  color: #24d830; }
+
+code.language-clcmd {
+  padding-left: 7ch; }
+
+div.listingblock.no-outdent pre {
+  margin-left: 7ch; }
+
+sup.footnote {
+  font-size: 100%;
+  vertical-align: baseline; }
+
+.section-entries .col-opt {
+  width: 4ch; }
+.section-entries .col-title {
+  width: 60ch; }
+.section-entries .col-date {
+  width: 10ch; }

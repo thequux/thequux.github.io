@@ -1,0 +1,4 @@
+baseURL = "http://thequux.github.io/"
+languageCode = "en-us"
+title = "The Quux of the Matter"
+theme = "5250"
